@@ -236,6 +236,8 @@ describe('filters', function() {
       var utc       = new angular.mock.TzDate( 0, '2010-09-03T12:05:08.000Z');
       var eastOfUTC = new angular.mock.TzDate(-5, '2010-09-03T12:05:08.000Z');
       var westOfUTC = new angular.mock.TzDate(+5, '2010-09-03T12:05:08.000Z');
+      var eastOfUTCPartial = new angular.mock.TzDate(-5.5, '2010-09-03T12:05:08.000Z');
+      var westOfUTCPartial = new angular.mock.TzDate(+5.5, '2010-09-03T12:05:08.000Z');
 
       expect(date(utc, "yyyy-MM-ddTHH:mm:ssZ")).
                     toEqual('2010-09-03T12:05:08+0000')
@@ -245,6 +247,12 @@ describe('filters', function() {
 
       expect(date(westOfUTC, "yyyy-MM-ddTHH:mm:ssZ")).
                     toEqual('2010-09-03T07:05:08-0500')
+
+      expect(date(eastOfUTCPartial, "yyyy-MM-ddTHH:mm:ssZ")).
+                    toEqual('2010-09-03T17:35:08+0530')
+
+      expect(date(westOfUTCPartial, "yyyy-MM-ddTHH:mm:ssZ")).
+                    toEqual('2010-09-03T06:35:08-0530')
     });
 
     it('should treat single quoted strings as string literals', function() {
@@ -292,21 +300,23 @@ describe('filters', function() {
     it('should support various iso8061 date strings with timezone as input', function() {
       var format = 'yyyy-MM-dd ss';
 
+      var localDay = new Date(Date.UTC(2003, 9, 10, 13, 2, 3, 0)).getDate();
+
       //full ISO8061
-      expect(date('2003-09-10T13:02:03.000Z', format)).toEqual('2003-09-10 03');
+      expect(date('2003-09-10T13:02:03.000Z', format)).toEqual('2003-09-' + localDay + ' 03');
 
-      expect(date('2003-09-10T13:02:03.000+00:00', format)).toEqual('2003-09-10 03');
+      expect(date('2003-09-10T13:02:03.000+00:00', format)).toEqual('2003-09-' + localDay + ' 03');
 
-      expect(date('20030910T033203-0930', format)).toEqual('2003-09-10 03');
+      expect(date('20030910T033203-0930', format)).toEqual('2003-09-' + localDay + ' 03');
 
       //no millis
-      expect(date('2003-09-10T13:02:03Z', format)).toEqual('2003-09-10 03');
+      expect(date('2003-09-10T13:02:03Z', format)).toEqual('2003-09-' + localDay + ' 03');
 
       //no seconds
-      expect(date('2003-09-10T13:02Z', format)).toEqual('2003-09-10 00');
+      expect(date('2003-09-10T13:02Z', format)).toEqual('2003-09-' + localDay + ' 00');
 
       //no minutes
-      expect(date('2003-09-10T13Z', format)).toEqual('2003-09-10 00');
+      expect(date('2003-09-10T13Z', format)).toEqual('2003-09-' + localDay + ' 00');
     });
 
 
@@ -323,16 +333,18 @@ describe('filters', function() {
     });
 
     it('should support different degrees of subsecond precision', function () {
-      var format = 'yyyy-MM-dd';
+      var format = 'yyyy-MM-dd ss';
 
-      expect(date('2003-09-10T13:02:03.12345678Z', format)).toEqual('2003-09-10');
-      expect(date('2003-09-10T13:02:03.1234567Z', format)).toEqual('2003-09-10');
-      expect(date('2003-09-10T13:02:03.123456Z', format)).toEqual('2003-09-10');
-      expect(date('2003-09-10T13:02:03.12345Z', format)).toEqual('2003-09-10');
-      expect(date('2003-09-10T13:02:03.1234Z', format)).toEqual('2003-09-10');
-      expect(date('2003-09-10T13:02:03.123Z', format)).toEqual('2003-09-10');
-      expect(date('2003-09-10T13:02:03.12Z', format)).toEqual('2003-09-10');
-      expect(date('2003-09-10T13:02:03.1Z', format)).toEqual('2003-09-10');
+      var localDay = new Date(Date.UTC(2003, 9-1, 10, 13, 2, 3, 123)).getDate();
+
+      expect(date('2003-09-10T13:02:03.12345678Z', format)).toEqual('2003-09-' + localDay + ' 03');
+      expect(date('2003-09-10T13:02:03.1234567Z', format)).toEqual('2003-09-' + localDay + ' 03');
+      expect(date('2003-09-10T13:02:03.123456Z', format)).toEqual('2003-09-' + localDay + ' 03');
+      expect(date('2003-09-10T13:02:03.12345Z', format)).toEqual('2003-09-' + localDay + ' 03');
+      expect(date('2003-09-10T13:02:03.1234Z', format)).toEqual('2003-09-' + localDay + ' 03');
+      expect(date('2003-09-10T13:02:03.123Z', format)).toEqual('2003-09-' + localDay + ' 03');
+      expect(date('2003-09-10T13:02:03.12Z', format)).toEqual('2003-09-' + localDay + ' 03');
+      expect(date('2003-09-10T13:02:03.1Z', format)).toEqual('2003-09-' + localDay + ' 03');
     });
   });
 });

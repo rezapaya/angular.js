@@ -15,9 +15,9 @@ function classDirective(name, selector) {
 
     if (name !== 'ngClass') {
       scope.$watch('$index', function($index, old$index) {
-        var mod = $index % 2;
-        if (mod !== old$index % 2) {
-          if (mod == selector) {
+        var mod = $index & 1;
+        if (mod !== old$index & 1) {
+          if (mod === selector) {
             addClass(scope.$eval(attr[name]));
           } else {
             removeClass(scope.$eval(attr[name]));
@@ -29,12 +29,12 @@ function classDirective(name, selector) {
 
     function ngClassWatchAction(newVal) {
       if (selector === true || scope.$index % 2 === selector) {
-        if (oldVal && (newVal !== oldVal)) {
+        if (oldVal && !equals(newVal,oldVal)) {
           removeClass(oldVal);
         }
         addClass(newVal);
       }
-      oldVal = newVal;
+      oldVal = copy(newVal);
     }
 
 
@@ -62,8 +62,8 @@ function classDirective(name, selector) {
  * @name ng.directive:ngClass
  *
  * @description
- * The `ngClass` allows you to set CSS class on HTML element dynamically by databinding an
- * expression that represents all classes to be added.
+ * The `ngClass` allows you to set CSS classes on HTML an element, dynamically, by databinding
+ * an expression that represents all classes to be added.
  *
  * The directive won't add duplicate classes if a particular class was already set.
  *
@@ -73,7 +73,9 @@ function classDirective(name, selector) {
  * @element ANY
  * @param {expression} ngClass {@link guide/expression Expression} to eval. The result
  *   of the evaluation can be a string representing space delimited class
- *   names, an array, or a map of class names to boolean values.
+ *   names, an array, or a map of class names to boolean values. In the case of a map, the
+ *   names of the properties whose values are truthy will be added as css classes to the
+ *   element.
  *
  * @example
    <example>
@@ -160,7 +162,7 @@ var ngClassOddDirective = classDirective('Odd', 0);
  * @name ng.directive:ngClassEven
  *
  * @description
- * The `ngClassOdd` and `ngClassEven` works exactly as
+ * The `ngClassOdd` and `ngClassEven` directives work exactly as
  * {@link ng.directive:ngClass ngClass}, except it works in
  * conjunction with `ngRepeat` and takes affect only on odd (even) rows.
  *

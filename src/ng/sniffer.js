@@ -9,6 +9,8 @@
  *
  * @property {boolean} history Does the browser support html5 history api ?
  * @property {boolean} hashchange Does the browser support hashchange event ?
+ * @property {boolean} transitions Does the browser support CSS transition events ?
+ * @property {boolean} animations Does the browser support CSS animation events ?
  *
  * @description
  * This is very simple implementation of testing browser's features.
@@ -16,8 +18,32 @@
 function $SnifferProvider() {
   this.$get = ['$window', '$document', function($window, $document) {
     var eventSupport = {},
-        android = int((/android (\d+)/.exec(lowercase($window.navigator.userAgent)) || [])[1]),
-        document = $document[0];
+        android = int((/android (\d+)/.exec(lowercase(($window.navigator || {}).userAgent)) || [])[1]),
+        document = $document[0] || {},
+        vendorPrefix,
+        vendorRegex = /^(Moz|webkit|O|ms)(?=[A-Z])/,
+        bodyStyle = document.body && document.body.style,
+        transitions = false,
+        animations = false,
+        match;
+
+    if (bodyStyle) {
+      for(var prop in bodyStyle) {
+        if(match = vendorRegex.exec(prop)) {
+          vendorPrefix = match[0];
+          vendorPrefix = vendorPrefix.substr(0, 1).toUpperCase() + vendorPrefix.substr(1);
+          break;
+        }
+      }
+      transitions = !!(('transition' in bodyStyle) || (vendorPrefix + 'Transition' in bodyStyle));
+      animations  = !!(('animation' in bodyStyle) || (vendorPrefix + 'Animation' in bodyStyle));
+      
+      if (android && (!transitions||!animations)) {
+        transitions = isString(document.body.style.webkitTransition); 
+        animations = isString(document.body.style.webkitAnimation); 
+      }
+    }
+
 
     return {
       // Android has history.pushState, but it does not update location correctly
@@ -41,7 +67,10 @@ function $SnifferProvider() {
 
         return eventSupport[event];
       },
-      csp: document.securityPolicy ? document.securityPolicy.isActive : false
+      csp: document.securityPolicy ? document.securityPolicy.isActive : false,
+      vendorPrefix: vendorPrefix,
+      transitions : transitions,
+      animations : animations
     };
   }];
 }

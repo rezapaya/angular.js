@@ -306,7 +306,7 @@ describe("angular.scenario.dsl", function() {
             elm = jqLite('<a href="#foo"></a>');
 
         doc.append(elm);
-        elm.bind('click', function(event) {
+        elm.on('click', function(event) {
           event.preventDefault();
         });
 
@@ -338,7 +338,7 @@ describe("angular.scenario.dsl", function() {
             elm = jqLite('<a href="#foo"></a>');
 
         doc.append(elm);
-        elm.bind('dblclick', function(event) {
+        elm.on('dblclick', function(event) {
           event.preventDefault();
         });
 
@@ -365,6 +365,46 @@ describe("angular.scenario.dsl", function() {
         });
         $root.dsl.element('#inner').mouseover();
         expect(mousedOver).toBe(true);
+      });
+
+      it('should execute mousedown', function() {
+        var mousedDown;
+        doc.append('<div></div>');
+        doc.find('div').mousedown(function() {
+          mousedDown = true;
+        });
+        $root.dsl.element('div').mousedown();
+        expect(mousedDown).toBe(true);
+      });
+
+      it('should bubble up the mousedown event', function() {
+        var mousedDown;
+        doc.append('<div id="outer"><div id="inner"></div></div>');
+        doc.find('#outer').mousedown(function() {
+          mousedDown = true;
+        });
+        $root.dsl.element('#inner').mousedown();
+        expect(mousedDown).toBe(true);
+      });
+
+      it('should execute mouseup', function() {
+        var mousedUp;
+        doc.append('<div></div>');
+        doc.find('div').mouseup(function() {
+          mousedUp = true;
+        });
+        $root.dsl.element('div').mouseup();
+        expect(mousedUp).toBe(true);
+      });
+
+      it('should bubble up the mouseup event', function() {
+        var mousedUp;
+        doc.append('<div id="outer"><div id="inner"></div></div>');
+        doc.find('#outer').mouseup(function() {
+          mousedUp = true;
+        });
+        $root.dsl.element('#inner').mouseup();
+        expect(mousedUp).toBe(true);
       });
 
       it('should count matching elements', function() {

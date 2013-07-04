@@ -7,6 +7,9 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-connect');
   grunt.loadNpmTasks('grunt-contrib-compress');
+  grunt.loadNpmTasks('grunt-contrib-jasmine-node');
+  grunt.loadNpmTasks('grunt-shell');
+  grunt.loadNpmTasks('grunt-parallel');
   grunt.loadTasks('lib/grunt');
 
   var NG_VERSION = util.getVersion();
@@ -21,11 +24,26 @@ module.exports = function(grunt) {
   grunt.initConfig({
     NG_VERSION: NG_VERSION,
 
+    parallel: {
+      travis: {
+        options: {
+          stream: true,
+        },
+        tasks: [
+          util.parallelTask('test:docs'),
+          util.parallelTask('test:modules'),
+          util.parallelTask('test:jquery'),
+          util.parallelTask('test:jqlite'),
+          util.parallelTask('test:e2e')
+        ]
+      }
+    },
+
     connect: {
       devserver: {
         options: {
           port: 8000,
-          hostname: 'localhost',
+          hostname: '0.0.0.0',
           base: '.',
           keepalive: true,
           middleware: function(connect, options){
@@ -40,33 +58,63 @@ module.exports = function(grunt) {
           }
         }
       },
-      testserver: {}
+      testserver: {
+        options: {
+          middleware: function(connect, options){
+            return [
+              function(req, resp, next) {
+                // cache get requests to speed up tests on travis
+                if (req.method === 'GET') {
+                  resp.setHeader('Cache-control', 'public, max-age=3600');
+                }
+
+                next();
+              },
+              connect.favicon('images/favicon.ico'),
+              connect.static(options.base)
+            ];
+          }
+        }
+      }
     },
 
 
     test: {
-      jqlite: 'testacular-jqlite.conf.js',
-      jquery: 'testacular-jquery.conf.js',
-      modules: 'testacular-modules.conf.js',
+      jqlite: 'karma-jqlite.conf.js',
+      jquery: 'karma-jquery.conf.js',
+      docs: 'karma-docs.conf.js',
+      modules: 'karma-modules.conf.js',
       //NOTE run grunt test:e2e instead and it will start a webserver for you
-      end2end: 'testacular-e2e.conf.js'
+      end2end: 'karma-e2e.conf.js'
     },
 
 
     autotest: {
-      jqlite: 'testacular-jqlite.conf.js',
-      jquery: 'testacular-jquery.conf.js'
+      jqlite: 'karma-jqlite.conf.js',
+      jquery: 'karma-jquery.conf.js',
+      modules: 'karma-modules.conf.js',
+      docs: 'karma-docs.conf.js',
     },
 
 
     clean: {build: ['build']},
 
 
+    shell: {
+      bower: {
+        command: 'node ./node_modules/bower/bin/bower install',
+        options: {
+            stdout: false
+        }
+      }
+    },
+
+
     build: {
       scenario: {
         dest: 'build/angular-scenario.js',
         src: [
-          'lib/jquery/jquery.js',
+          'components/jquery/jquery.js',
           util.wrap([files['angularSrc'], files['angularScenario']], 'ngScenario/angular')
         ],
         styles: {
@@ -85,6 +133,15 @@ module.exports = function(grunt) {
         dest: 'build/angular-loader.js',
         src: util.wrap(['src/loader.js'], 'loader')
       },
+      mobile: {
+        dest: 'build/angular-mobile.js',
+        src: util.wrap([
+          'src/ngMobile/mobile.js',
+          'src/ngMobile/swipe.js',
+          'src/ngMobile/directive/ngClick.js',
+          'src/ngMobile/directive/ngSwipe.js'
+            ], 'module')
+      },
       mocks: {
         dest: 'build/angular-mocks.js',
         src: ['src/ngMock/angular-mocks.js'],
@@ -95,28 +152,25 @@ module.exports = function(grunt) {
         src: util.wrap([
           'src/ngSanitize/sanitize.js',
           'src/ngSanitize/directive/ngBindHtml.js',
-          'src/ngSanitize/filter/linky.js',
+          'src/ngSanitize/filter/linky.js'
         ], 'module')
       },
       resource: {
         dest: 'build/angular-resource.js',
         src: util.wrap(['src/ngResource/resource.js'], 'module')
       },
+      route: {
+        dest: 'build/angular-route.js',
+        src: util.wrap([
+          'src/ngRoute/routeUtils.js',
+          'src/ngRoute/route.js',
+          'src/ngRoute/routeParams.js',
+          'src/ngRoute/directive/ngView.js'
+        ], 'module')
+      },
       cookies: {
         dest: 'build/angular-cookies.js',
         src: util.wrap(['src/ngCookies/cookies.js'], 'module')
-      },
-      bootstrap: {
-        dest: 'build/angular-bootstrap.js',
-        src: util.wrap(['src/bootstrap/bootstrap.js'], 'module')
-      },
-      bootstrapPrettify: {
-        dest: 'build/angular-bootstrap-prettify.js',
-        src: util.wrap(['src/bootstrap/bootstrap-prettify.js', 'src/bootstrap/google-prettify/prettify.js'], 'module'),
-        styles: {
-          css: ['src/bootstrap/google-prettify/prettify.css'],
-          minify: true
-        }
       }
     },
 
@@ -125,10 +179,10 @@ module.exports = function(grunt) {
       angular: 'build/angular.js',
       cookies: 'build/angular-cookies.js',
       loader: 'build/angular-loader.js',
+      mobile: 'build/angular-mobile.js',
       resource: 'build/angular-resource.js',
-      sanitize: 'build/angular-sanitize.js',
-      bootstrap: 'build/angular-bootstrap.js',
-      bootstrapPrettify: 'build/angular-bootstrap-prettify.js',
+      route: 'build/angular-route.js',
+      sanitize: 'build/angular-sanitize.js'
     },
 
 
@@ -136,6 +190,9 @@ module.exports = function(grunt) {
       process: ['build/docs/*.html', 'build/docs/.htaccess']
     },
 
+    "jasmine-node": {
+      run: { spec: 'docs/spec' }
+    },
 
     copy: {
       i18n: {
@@ -163,9 +220,10 @@ module.exports = function(grunt) {
 
   //alias tasks
   grunt.registerTask('test:unit', ['test:jqlite', 'test:jquery', 'test:modules']);
-  grunt.registerTask('minify', ['clean', 'build', 'minall']);
+  grunt.registerTask('test:docgen', ['jasmine-node']);
+  grunt.registerTask('minify', ['shell:bower','clean', 'build', 'minall']);
   grunt.registerTask('test:e2e', ['connect:testserver', 'test:end2end']);
   grunt.registerTask('webserver', ['connect:devserver']);
-  grunt.registerTask('package', ['clean', 'buildall', 'minall', 'docs', 'copy', 'write', 'compress']);
+  grunt.registerTask('package', ['shell:bower','clean', 'buildall', 'minall', 'collect-errors', 'docs', 'copy', 'write', 'compress']);
   grunt.registerTask('default', ['package']);
 };
