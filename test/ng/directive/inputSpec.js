@@ -43,7 +43,7 @@ describe('NgModelController', function() {
     }
 
     expect(exception.message).
-        toMatch(/Non-assignable model expression: 1\+2 \(<input( value="")? ng-model="1\+2">\)/);
+        toMatch(/^\[ngModel:noass\] Expression '1\+2' is non\-assignable\. Element: <input( value="")? ng-model="1\+2">$/);
   }));
 
 
@@ -309,7 +309,7 @@ describe('ngModel', function() {
 
 
 describe('input', function() {
-  var formElm, inputElm, scope, $compile, changeInputValueTo;
+  var formElm, inputElm, scope, $compile, $sniffer, $browser, changeInputValueTo;
 
   function compileInput(inputHtml) {
     inputElm = jqLite(inputHtml);
@@ -318,7 +318,9 @@ describe('input', function() {
     $compile(formElm)(scope);
   }
 
-  beforeEach(inject(function($injector, $sniffer) {
+  beforeEach(inject(function($injector, _$sniffer_, _$browser_) {
+    $sniffer = _$sniffer_;
+    $browser = _$browser_;
     $compile = $injector.get('$compile');
     scope = $injector.get('$rootScope');
 
@@ -385,6 +387,34 @@ describe('input', function() {
     expect(scope.name).toEqual('adam');
   });
 
+  describe('"paste" and "cut" events', function() {
+    beforeEach(function() {
+      // Force browser to report a lack of an 'input' event
+      $sniffer.hasEvent = function(eventName) {
+        return eventName !== 'input';
+      };
+    });
+
+    it('should update the model on "paste" event', function() {
+      compileInput('<input type="text" ng-model="name" name="alias" ng-change="change()" />');
+
+      inputElm.val('mark');
+      browserTrigger(inputElm, 'paste');
+      $browser.defer.flush();
+      expect(scope.name).toEqual('mark');
+    });
+
+    it('should update the model on "cut" event', function() {
+      compileInput('<input type="text" ng-model="name" name="alias" ng-change="change()" />');
+
+      inputElm.val('john');
+      browserTrigger(inputElm, 'cut');
+      $browser.defer.flush();
+      expect(scope.name).toEqual('john');
+    });
+
+  });
+
 
   it('should update the model and trim the value', function() {
     compileInput('<input type="text" ng-model="name" name="alias" ng-change="change()" />');
@@ -427,7 +457,7 @@ describe('input', function() {
     expect(function() {
       compileInput('<input type="text" ng-model="throw \'\'">');
       scope.$digest();
-    }).toThrow("Syntax Error: Token '''' is an unexpected token at column 7 of the expression [throw ''] starting at [''].");
+    }).toThrow("[$parse:syntax] Syntax Error: Token '''' is an unexpected token at column 7 of the expression [throw ''] starting at [''].");
   });
 
 
@@ -476,6 +506,18 @@ describe('input', function() {
     });
 
 
+    it('should validate in-lined pattern with modifiers', function() {
+      compileInput('<input type="text" ng-model="value" ng-pattern="/^abc?$/i" />');
+      scope.$digest();
+
+      changeInputValueTo('aB');
+      expect(inputElm).toBeValid();
+
+      changeInputValueTo('xx');
+      expect(inputElm).toBeInvalid();
+    });
+
+
     it('should validate pattern from scope', function() {
       compileInput('<input type="text" ng-model="value" ng-pattern="regexp" />');
       scope.regexp = /^\d\d\d-\d\d-\d\d\d\d$/;
@@ -506,11 +548,11 @@ describe('input', function() {
     });
 
 
-    xit('should throw an error when scope pattern can\'t be found', function() {
-      compileInput('<input type="text" ng-model="foo" ng-pattern="fooRegexp" />');
-
-      expect(function() { changeInputValueTo('xx'); }).
-          toThrow('Expected fooRegexp to be a RegExp but was undefined');
+    it('should throw an error when scope pattern can\'t be found', function() {
+      expect(function() {
+        compileInput('<input type="text" ng-model="foo" ng-pattern="fooRegexp" />');
+        scope.$apply();
+      }).toThrowMatching(/^\[ngPattern:noregexp\] Expected fooRegexp to be a RegExp but was/);
     });
   });
 

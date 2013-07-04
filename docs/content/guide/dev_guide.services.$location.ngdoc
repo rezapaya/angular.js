@@ -98,7 +98,7 @@ To configure the `$location` service, retrieve the
 
 - **hashPrefix(prefix)**: {string}<br />
   prefix used for Hashbang URLs (used in Hashbang mode or in legacy browser in Html5 mode)<br />
-  default: `'!'`
+  default: `""`
 
 ### Example configuration
 <pre>
@@ -212,7 +212,7 @@ In this mode, `$location` uses Hashbang URLs in all browsers.
 it('should show example', inject(
   function($locationProvider) {
     $locationProvider.html5Mode(false);
-    $locationProvider.hashPrefix = '!';
+    $locationProvider.hashPrefix('!');
   },
   function($location) {
     // open http://host.com/base/index.html#!/a
@@ -261,7 +261,7 @@ having to worry about whether the browser displaying your app supports the histo
 it('should show example', inject(
   function($locationProvider) {
     $locationProvider.html5Mode(true);
-    $locationProvider.hashPrefix = '!';
+    $locationProvider.hashPrefix('!');
   },
   function($location) {
     // in browser with HTML5 history support:
@@ -450,7 +450,7 @@ In this examples we use `<base href="/base/index.html" />`
               input = angular.element('<input type="text">').val(browser.url()),
               delay;
 
-          input.bind('keypress keyup keydown', function() {
+          input.on('keypress keyup keydown', function() {
             if (!delay) {
               delay = setTimeout(fireUrlChange, 250);
             }
@@ -469,7 +469,7 @@ In this examples we use `<base href="/base/index.html" />`
         };
       });
     }]);
-    root.bind('click', function(e) {
+    root.on('click', function(e) {
       e.stopPropagation();
     });
   }
@@ -619,21 +619,25 @@ to the $location object (using {@link api/ng.directive:input.text
 ngModel} directive on an input field), you will need to specify an extra model property
 (e.g. `locationPath`) with two watchers which push $location updates in both directions. For
 example:
-<pre>
-<!-- html -->
-<input type="text" ng-model="locationPath" />
-</pre>
-<pre>
-// js - controller
-$scope.$watch('locationPath', function(path) {
-  $location.path(path);
-});
-
-$scope.$watch('$location.path()', function(path) {
-  scope.locationPath = path;
-});
-</pre>
-
+<example>
+<file name="index.html">
+<div ng-controller="LocationController">
+  <input type="text" ng-model="locationPath" />
+</div>
+</file>
+<file name="script.js">
+function LocationController($scope, $location) {
+  $scope.$watch('locationPath', function(path) {
+    $location.path(path);
+  });
+  $scope.$watch(function() {
+    return $location.path();
+  }, function(path) {
+    $scope.locationPath = path;
+  });
+}
+</file>
+</example>
 
 # Related API
 

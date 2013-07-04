@@ -42,6 +42,7 @@ var FN_ARGS = /^function\s*[^\(]*\(\s*([^\)]*)\)/m;
 var FN_ARG_SPLIT = /,/;
 var FN_ARG = /^\s*(_?)(\S+?)\1\s*$/;
 var STRIP_COMMENTS = /((\/\/.*$)|(\/\*[\s\S]*?\*\/))/mg;
+var $injectorMinErr = minErr('$injector');
 function annotate(fn) {
   var $inject,
       fnText,
@@ -62,7 +63,7 @@ function annotate(fn) {
     }
   } else if (isArray(fn)) {
     last = fn.length - 1;
-    assertArgFn(fn[last], 'fn')
+    assertArgFn(fn[last], 'fn');
     $inject = fn.slice(0, last);
   } else {
     assertArgFn(fn, 'fn', true);
@@ -96,19 +97,19 @@ function annotate(fn) {
  * # Injection Function Annotation
  *
  * JavaScript does not have annotations, and annotations are needed for dependency injection. The
- * following ways are all valid way of annotating function with injection arguments and are equivalent.
+ * following are all valid ways of annotating function with injection arguments and are equivalent.
  *
  * <pre>
  *   // inferred (only works if code not minified/obfuscated)
- *   $inject.invoke(function(serviceA){});
+ *   $injector.invoke(function(serviceA){});
  *
  *   // annotated
  *   function explicit(serviceA) {};
  *   explicit.$inject = ['serviceA'];
- *   $inject.invoke(explicit);
+ *   $injector.invoke(explicit);
  *
  *   // inline
- *   $inject.invoke(['serviceA', function(serviceA){}]);
+ *   $injector.invoke(['serviceA', function(serviceA){}]);
  * </pre>
  *
  * ## Inference
@@ -149,6 +150,18 @@ function annotate(fn) {
  * @param {Object=} locals Optional object. If preset then any argument names are read from this object first, before
  *   the `$injector` is consulted.
  * @returns {*} the value returned by the invoked `fn` function.
+ */
+
+/**
+ * @ngdoc method
+ * @name AUTO.$injector#has
+ * @methodOf AUTO.$injector
+ *
+ * @description
+ * Allows the user to query if the particular service exist.
+ *
+ * @param {string} Name of the service to query.
+ * @returns {boolean} returns true if injector has given service.
  */
 
 /**
@@ -225,7 +238,7 @@ function annotate(fn) {
  *     // ...
  *   };
  *   tmpFn.$inject = ['$compile', '$rootScope'];
- *   injector.invoke(tempFn);
+ *   injector.invoke(tmpFn);
  *
  *   // To better support inline function the inline annotation is supported
  *   injector.invoke(['$compile', '$rootScope', function(obfCompile, obfRootScope) {
@@ -254,7 +267,7 @@ function annotate(fn) {
  * @description
  *
  * Use `$provide` to register new providers with the `$injector`. The providers are the factories for the instance.
- * The providers share the same name as the instance they create with the `Provider` suffixed to them.
+ * The providers share the same name as the instance they create with `Provider` suffixed to them.
  *
  * A provider is an object with a `$get()` method. The injector calls the `$get` method to create a new instance of
  * a service. The Provider can have additional methods which would allow for configuration of the provider.
@@ -278,7 +291,7 @@ function annotate(fn) {
  *
  *     beforeEach(module(function($provide) {
  *       $provide.provider('greet', GreetProvider);
- *     });
+ *     }));
  *
  *     it('should greet', inject(function(greet) {
  *       expect(greet('angular')).toEqual('Hello angular!');
@@ -291,9 +304,7 @@ function annotate(fn) {
  *       inject(function(greet) {
  *         expect(greet('angular')).toEqual('Ahoj angular!');
  *       });
- *     )};
- *
- *   });
+ *     });
  * </pre>
  */
 
@@ -387,7 +398,7 @@ function annotate(fn) {
  *
  * @param {string} name The name of the service to decorate.
  * @param {function()} decorator This function will be invoked when the service needs to be
- *    instanciated. The function is called using the {@link AUTO.$injector#invoke
+ *    instantiated. The function is called using the {@link AUTO.$injector#invoke
  *    injector.invoke} method and is therefore fully injectable. Local injection arguments:
  *
  *    * `$delegate` - The original service instance, which can be monkey patched, configured,
@@ -412,7 +423,7 @@ function createInjector(modulesToLoad) {
       },
       providerInjector = (providerCache.$injector =
           createInternalInjector(providerCache, function() {
-            throw Error("Unknown provider: " + path.join(' <- '));
+            throw $injectorMinErr('unpr', "Unknown provider: {0}", path.join(' <- '));
           })),
       instanceCache = {},
       instanceInjector = (instanceCache.$injector =
@@ -445,7 +456,7 @@ function createInjector(modulesToLoad) {
       provider_ = providerInjector.instantiate(provider_);
     }
     if (!provider_.$get) {
-      throw Error('Provider ' + name + ' must define $get factory method.');
+      throw $injectorMinErr('pget', "Provider '{0}' must define $get factory method.", name);
     }
     return providerCache[name + providerSuffix] = provider_;
   }
@@ -483,37 +494,36 @@ function createInjector(modulesToLoad) {
     forEach(modulesToLoad, function(module) {
       if (loadedModules.get(module)) return;
       loadedModules.put(module, true);
-      if (isString(module)) {
-        var moduleFn = angularModule(module);
-        runBlocks = runBlocks.concat(loadModules(moduleFn.requires)).concat(moduleFn._runBlocks);
 
-        try {
+      try {
+        if (isString(module)) {
+          var moduleFn = angularModule(module);
+          runBlocks = runBlocks.concat(loadModules(moduleFn.requires)).concat(moduleFn._runBlocks);
+
           for(var invokeQueue = moduleFn._invokeQueue, i = 0, ii = invokeQueue.length; i < ii; i++) {
             var invokeArgs = invokeQueue[i],
                 provider = providerInjector.get(invokeArgs[0]);
 
             provider[invokeArgs[1]].apply(provider, invokeArgs[2]);
           }
-        } catch (e) {
-          if (e.message) e.message += ' from ' + module;
-          throw e;
+        } else if (isFunction(module)) {
+            runBlocks.push(providerInjector.invoke(module));
+        } else if (isArray(module)) {
+            runBlocks.push(providerInjector.invoke(module));
+        } else {
+          assertArgFn(module, 'module');
         }
-      } else if (isFunction(module)) {
-        try {
-          runBlocks.push(providerInjector.invoke(module));
-        } catch (e) {
-          if (e.message) e.message += ' from ' + module;
-          throw e;
+      } catch (e) {
+        if (isArray(module)) {
+          module = module[module.length - 1];
         }
-      } else if (isArray(module)) {
-        try {
-          runBlocks.push(providerInjector.invoke(module));
-        } catch (e) {
-          if (e.message) e.message += ' from ' + String(module[module.length - 1]);
-          throw e;
+        if (e.message && e.stack && e.stack.indexOf(e.message) == -1) {
+          // Safari & FF's stack traces don't contain error.message content unlike those of Chrome and IE
+          // So if stack doesn't contain message, we create a new string that contains both.
+          // Since error.stack is read-only in Safari, I'm overriding e and not e.stack here.
+          e = e.message + '\n' + e.stack;
         }
-      } else {
-        assertArgFn(module, 'module');
+        throw $injectorMinErr('modulerr', "Failed to instantiate module {0} due to:\n{1}", module, e.stack || e.message || e);
       }
     });
     return runBlocks;
@@ -526,12 +536,9 @@ function createInjector(modulesToLoad) {
   function createInternalInjector(cache, factory) {
 
     function getService(serviceName) {
-      if (typeof serviceName !== 'string') {
-        throw Error('Service name expected');
-      }
       if (cache.hasOwnProperty(serviceName)) {
         if (cache[serviceName] === INSTANTIATING) {
-          throw Error('Circular dependency: ' + path.join(' <- '));
+          throw $injectorMinErr('cdep', 'Circular dependency found: {0}', path.join(' <- '));
         }
         return cache[serviceName];
       } else {
@@ -553,6 +560,9 @@ function createInjector(modulesToLoad) {
 
       for(i = 0, length = $inject.length; i < length; i++) {
         key = $inject[i];
+        if (typeof key !== 'string') {
+          throw $injectorMinErr('itkn', 'Incorrect injection token! Expected service name as string, got {0}', key);
+        }
         args.push(
           locals && locals.hasOwnProperty(key)
           ? locals[key]
@@ -586,6 +596,8 @@ function createInjector(modulesToLoad) {
       var Constructor = function() {},
           instance, returnedValue;
 
+      // Check if Type is annotated and use just the given function at n-1 as parameter
+      // e.g. someModule.factory('greeter', ['$window', function(renamed$window) {}]);
       Constructor.prototype = (isArray(Type) ? Type[Type.length - 1] : Type).prototype;
       instance = new Constructor();
       returnedValue = invoke(Type, instance, locals);
@@ -597,7 +609,10 @@ function createInjector(modulesToLoad) {
       invoke: invoke,
       instantiate: instantiate,
       get: getService,
-      annotate: annotate
+      annotate: annotate,
+      has: function(name) {
+        return providerCache.hasOwnProperty(name + providerSuffix) || cache.hasOwnProperty(name);
+      }
     };
   }
 }

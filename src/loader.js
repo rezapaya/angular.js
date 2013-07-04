@@ -30,8 +30,8 @@ function setupModuleLoader(window) {
      *
      * # Module
      *
-     * A module is a collocation of services, directives, filters, and configuration information. Module
-     * is used to configure the {@link AUTO.$injector $injector}.
+     * A module is a collection of services, directives, filters, and configuration information.
+     * `angular.module` is used to configure the {@link AUTO.$injector $injector}.
      *
      * <pre>
      * // Create a new module
@@ -70,7 +70,7 @@ function setupModuleLoader(window) {
       }
       return ensure(modules, name, function() {
         if (!requires) {
-          throw Error('No module: ' + name);
+          throw minErr('$injector')('nomod', "Module '{0}' is not available! You either misspelled the module name or forgot to load it.", name);
         }
 
         /** @type {!Array.<Array.<*>>} */
@@ -162,6 +162,33 @@ function setupModuleLoader(window) {
            * See {@link AUTO.$provide#constant $provide.constant()}.
            */
           constant: invokeLater('$provide', 'constant', 'unshift'),
+
+          /**
+           * @ngdoc method
+           * @name angular.Module#animation
+           * @methodOf angular.Module
+           * @param {string} name animation name
+           * @param {Function} animationFactory Factory function for creating new instance of an animation.
+           * @description
+           *
+           * Defines an animation hook that can be later used with {@link ng.directive:ngAnimate ngAnimate}
+           * alongside {@link ng.directive:ngAnimate#Description common ng directives} as well as custom directives.
+           * <pre>
+           * module.animation('animation-name', function($inject1, $inject2) {
+           *   return {
+           *     //this gets called in preparation to setup an animation
+           *     setup : function(element) { ... },
+           *
+           *     //this gets called once the animation is run
+           *     start : function(element, done, memo) { ... }
+           *   }
+           * })
+           * </pre>
+           *
+           * See {@link ng.$animationProvider#register $animationProvider.register()} and
+           * {@link ng.directive:ngAnimate ngAnimate} for more information.
+           */
+          animation: invokeLater('$animationProvider', 'register'),
 
           /**
            * @ngdoc method

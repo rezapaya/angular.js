@@ -37,13 +37,13 @@
  */
 var ngEventDirectives = {};
 forEach(
-  'click dblclick mousedown mouseup mouseover mouseout mousemove mouseenter mouseleave keydown keyup'.split(' '),
+  'click dblclick mousedown mouseup mouseover mouseout mousemove mouseenter mouseleave keydown keyup keypress'.split(' '),
   function(name) {
     var directiveName = directiveNormalize('ng-' + name);
     ngEventDirectives[directiveName] = ['$parse', function($parse) {
       return function(scope, element, attr) {
         var fn = $parse(attr[directiveName]);
-        element.bind(lowercase(name), function(event) {
+        element.on(lowercase(name), function(event) {
           scope.$apply(function() {
             fn(scope, {$event:event});
           });
@@ -198,13 +198,30 @@ forEach(
 
 /**
  * @ngdoc directive
+ * @name ng.directive:ngKeypress
+ *
+ * @description
+ * Specify custom behavior on keypress event.
+ *
+ * @element ANY
+ * @param {expression} ngKeypress {@link guide/expression Expression} to evaluate upon
+ * keypress. (Event object is available as `$event` and can be interrogated for keyCode, altKey, etc.)
+ *
+ * @example
+ * See {@link ng.directive:ngClick ngClick}
+ */
+
+
+/**
+ * @ngdoc directive
  * @name ng.directive:ngSubmit
  *
  * @description
  * Enables binding angular expressions to onsubmit events.
  *
  * Additionally it prevents the default action (which for form means sending the request to the
- * server and reloading the current page).
+ * server and reloading the current page) **but only if the form does not contain an `action`
+ * attribute**.
  *
  * @element form
  * @param {expression} ngSubmit {@link guide/expression Expression} to eval.
@@ -248,7 +265,7 @@ forEach(
    </doc:example>
  */
 var ngSubmitDirective = ngDirective(function(scope, element, attrs) {
-  element.bind('submit', function() {
+  element.on('submit', function() {
     scope.$apply(attrs.ngSubmit);
   });
 });
